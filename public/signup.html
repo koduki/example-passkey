@@ -13,10 +13,96 @@
     <h1>サインアップ</h1>
 
     <div id="container">
-        <p><input type="text" placeholder="アカウントID"></input></p>
-        <p><button>サインアップ</button></p>
+        <p><input id='txtName' type="text" placeholder="アカウントID"></input></p>
+        <p><button id="btnSignup">サインアップ</button></p>
     </div>
 
+    <script>
+        function ab2base64url(ab) {
+            const str = String.fromCharCode.apply(null, new Uint8Array(ab));
+            const base64 = window.btoa(str);
+            const base64url = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=*$/g, '');
+
+            return base64url;
+        }
+
+        function base64url2ab(base64url) {
+            // base64url to base 64
+            let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+            const paddingLength = 4 - (base64.length % 4);
+            if (paddingLength !== 4) {
+                base64 += '='.repeat(paddingLength);
+            }
+
+            // base64 to ArrayBuffer
+            const bstr = atob(base64);
+            const ab = Uint8Array.from(bstr, str => str.charCodeAt(0)); // Uint8Array化
+            return ab;
+        }
+
+        function s2ab(str) {
+            return (new TextEncoder('utf-8')).encode(str);
+        }
+
+        document.querySelector('#btnSignup').addEventListener('click', async () => {
+            const registOptionsResp = await fetch('/generate-registration-options');
+            const registOptions = await registOptionsResp.json();
+            console.log(registOptions);
+
+            // 認証器へのパラメータを初期化
+            const PublicKeyCredentialCreationOptions = {
+                challenge: base64url2ab(registOptions.challenge), // ArrayBuffer型に注意
+                rp: { // FIDOで言う認証器を受け入れるサイトのこと（Relying Partyの略）
+                    name: registOptions.rp.name, // RP名
+                    id: registOptions.rp.id // ユーザの登録・認証を行うドメイン名
+                },
+                user: {
+                    id: s2ab(registOptions.user.id), // RP内でユーザーを一意に識別する値（ArrayBuffer型に注意）
+                    name: registOptions.user.name, // ユーザー名
+                    displayName: registOptions.user.displayName // ニックネーム
+                },
+                pubKeyCredParams: [ // RPがサポートする署名アルゴリズム上から優先的に選択する
+                    { alg: -7, type: "public-key" },  // -7 (ES256)
+                    { alg: -257, type: "public-key" }, // -257 (RS256)
+                    { alg: -8, type: "public-key" } // -8 (Ed25519)
+                ],
+                excludeCredentials: [{ // 同じデバイスを複数回重複して登録させないためのパラメーター
+                    id: s2ab(registOptions.user.id), // idがすでに登録済みであればエラーにする。
+                    type: "public-key", //
+                    transports: ['internal'] // 別端末をつかった認証。 他にも usb, nfc, ble, smart-cardなどがある。
+                }],
+                authenticatorSelection: { // 登録を許可する認証器タイプを制限する際に利用
+                    authenticatorAttachment: "platform", // platform:端末に組み込まれている認証器（FaceID、生体認証など）のみを指定。cross-platform:USBやNFCなどを含めた外部端末の認証器（Yubikeyなど）のみを指定。 
+                    requireResidentKey: true, // 認証器内にユーザー情報を登録するオプション。Discoverable Credentialにするかどうか。
+                    userVerification: "preferred" // 認証器によるローカル認証（生体認証、PINなど）の必要性を指定。 required:ローカル認証を必須。preferred:可能な限りローカル認証。discouraged:ローカル認証を許可しない（所有物認証）
+                },
+            }
+
+            // 認証器へ送信
+            const credential = await navigator.credentials.create({
+                publicKey: PublicKeyCredentialCreationOptions,
+            });
+
+            const publicKeyCredential = {
+                id: ab2base64url(credential.rawId),
+                type: credential.type,
+                rawId: ab2base64url(credential.rawId), //Array.from(new Uint8Array(credential.rawId)),
+                response: {
+                    clientDataJSON: ab2base64url(credential.response.clientDataJSON),
+                    attestationObject: ab2base64url(credential.response.attestationObject)
+                }
+            };
+            // 認証器の戻りをRPに送信して検証
+            const verificationResp = await fetch('/verify-registration', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(publicKeyCredential),
+            });
+            console.log(await verificationResp.json());
+        });
+    </script>
 </body>
 
 </html>
