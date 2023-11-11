@@ -23,3 +23,7 @@ export function base64url2ab(base64url) {
 export function s2ab(str) {
     return (new TextEncoder('utf-8')).encode(str);
 }
+
+export function obj2ab(charObj) {
+    return new Uint8Array(Object.values(charObj)).buffer;
+}

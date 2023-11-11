@@ -17,18 +17,46 @@
 </body>
 
 <script type="module">
-    import { ab2base64url, base64url2ab, s2ab } from './static/base64url.js';
+    import { ab2base64url, base64url2ab, s2ab, obj2ab } from './static/base64url.js';
 
     document.querySelector('#linkLogin').addEventListener('click', async (event) => {
         event.preventDefault();
 
+        // チャレンジやPRに登録されている情報を取得
         const authOptionsResp = await fetch('/generate-authentication-options');
         const authOptions = await authOptionsResp.json();
-        const deviceId = new Uint8Array(Object.values(authOptions.allowCredentials[0].id)).buffer;
+        const deviceId = obj2ab(authOptions.allowCredentials[0].id);
 
-        console.log(deviceId);
 
-        const publicKeyCredentialRequestOptions = {
+        // チャレンジを検証し、PRから渡された情報にマッチするサイトが認証器に登録されているか検索
+        const publicKeyCredentialRequestOptions = buildFindOptions(authOptions, deviceId);
+        const credential = await navigator.credentials.get({
+            publicKey: publicKeyCredentialRequestOptions,
+            mediation: 'optional'
+        })
+        console.log(credential);
+
+
+        // チャレンジなど認証器の戻りをRPに送信して検証
+        const publicKeyCredential = buildPublicKeyCredential(credential);
+        const verificationResp = await fetch('/verify-authentication', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(publicKeyCredential),
+        });
+        console.log(verificationResp.ok);
+
+        // PRでの認証成功をチェック
+        if (verificationResp.ok) {
+            console.log("login:success");
+            // location.href = "profile"
+        } else {
+            console.log("login:fail");
+        }
+    });
+
+    function buildFindOptions(authOptions, deviceId) {
+        return {
             challenge: base64url2ab(authOptions.challenge), // CSRF対策（ArrayBuffer型）
             allowCredentials: [{
                 'type': "public-key",
@@ -37,13 +65,10 @@
             userVerification: "preferred" // 認証器によるローカル認証（生体認証、PIN入力など）の必要性を指定。
         }
 
-        const credential = await navigator.credentials.get({ // ここでもPublickKeyをもらう
-            publicKey: publicKeyCredentialRequestOptions,
-            mediation: 'optional'
-        })
-        console.log(credential);
+    }
 
-        const publicKeyCredential = {
+    function buildPublicKeyCredential(credential) {
+        return {
             id: ab2base64url(credential.rawId),
             type: credential.type,
             rawId: ab2base64url(credential.rawId), //Array.from(new Uint8Array(credential.rawId)),
@@ -53,18 +78,7 @@
                 signature: ab2base64url(credential.response.signature)
             }
         };
-
-        // 認証器の戻りをRPに送信して検証
-        const verificationResp = await fetch('/verify-authentication', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(publicKeyCredential),
-        });
-        console.log(verificationResp);
-        // location.href = "profile"
-    });
+    }
 </script>
 
 </html>
