@@ -4,15 +4,67 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
     <title>SimpleWebAuthn Example Site</title>
+    <link rel="stylesheet" href="static/style.css" />
 </head>
 
 <body>
     <h1>Passkey Example</h1>
-
-    <p><a href="signup">アカウントを作成</a></p>
-    <p>ログイン</p>
+    <div class="container">
+        <p><a href="signup">アカウントを作成</a></p>
+        <p><a href="" id="linkLogin">ログイン</a></p>
+    </div>
 </body>
+
+<script type="module">
+    import { ab2base64url, base64url2ab, s2ab } from './static/base64url.js';
+
+    document.querySelector('#linkLogin').addEventListener('click', async (event) => {
+        event.preventDefault();
+
+        const authOptionsResp = await fetch('/generate-authentication-options');
+        const authOptions = await authOptionsResp.json();
+        const deviceId = new Uint8Array(Object.values(authOptions.allowCredentials[0].id)).buffer;
+
+        console.log(deviceId);
+
+        const publicKeyCredentialRequestOptions = {
+            challenge: base64url2ab(authOptions.challenge), // CSRF対策（ArrayBuffer型）
+            allowCredentials: [{
+                'type': "public-key",
+                'id': deviceId
+            }], // 認証時に利用可能なPublicKeyCredentialを限定させることができる。
+            userVerification: "preferred" // 認証器によるローカル認証（生体認証、PIN入力など）の必要性を指定。
+        }
+
+        const credential = await navigator.credentials.get({ // ここでもPublickKeyをもらう
+            publicKey: publicKeyCredentialRequestOptions,
+            mediation: 'optional'
+        })
+        console.log(credential);
+
+        const publicKeyCredential = {
+            id: ab2base64url(credential.rawId),
+            type: credential.type,
+            rawId: ab2base64url(credential.rawId), //Array.from(new Uint8Array(credential.rawId)),
+            response: {
+                clientDataJSON: ab2base64url(credential.response.clientDataJSON),
+                authenticatorData: ab2base64url(credential.response.authenticatorData),
+                signature: ab2base64url(credential.response.signature)
+            }
+        };
+
+        // 認証器の戻りをRPに送信して検証
+        const verificationResp = await fetch('/verify-authentication', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(publicKeyCredential),
+        });
+        console.log(verificationResp);
+        // location.href = "profile"
+    });
+</script>
 
 </html>
