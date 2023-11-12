@@ -1,11 +1,14 @@
 import { Hono } from 'https://deno.land/x/hono/mod.ts';
 import { serveStatic } from 'https://deno.land/x/hono@v3.3.0/middleware.ts'
+import {
+    Session,
+    sessionMiddleware,
+    CookieStore
+} from 'https://deno.land/x/hono_sessions/mod.ts'
+
+
 
 import {
-    // Authentication
-    generateAuthenticationOptions,
-    // Registration
-    generateRegistrationOptions,
     verifyAuthenticationResponse,
     verifyRegistrationResponse,
 } from 'https://deno.land/x/simplewebauthn/deno/server.ts';
@@ -34,27 +37,34 @@ const rpID = 'localhost';
 const port = 8000;
 const expectedOrigin = `http://${rpID}:${port}`;
 
-const user = {
-    id: self.crypto.randomUUID(),
-    username: `user@${rpID}`,
-    devices: [],
-}
+const users = {}
 
-const dummyStore = {
-    currentChallenge: "",
-}
-const app = new Hono();
+const app = new Hono<{
+    Variables: {
+        session: Session,
+        session_key_rotation: boolean
+    }
+}>()
 
+const store = new CookieStore()
+app.use('*', sessionMiddleware({
+    store,
+    encryptionKey: 'password_at_least_32_characters_long', // Required for CookieStore, recommended for others
+    expireAfterSeconds: 900, // Expire session after 15 minutes
+    cookieOptions: {
+        sameSite: 'Lax',
+        path: '/',
+    },
+}))
 app.use('/*', serveStatic({ root: './public' }));
 
-app.get('/signup', serveStatic({ path: './public/signup.html' }));
-app.get('/profile', serveStatic({ path: './public/profile.html' }));
 
 app.get('/echo', (c) => {
     return c.text('Hello Deno!')
 })
 
 app.get('/generate-registration-options', (c) => {
+    const user = users[c.get('session').get("currentUserId")];
     const options = {
         challenge: isoBase64URL.fromString(genRandomStr(32)),
         rp: { name: 'SimpleWebAuthn Example', id: rpID },
@@ -64,7 +74,8 @@ app.get('/generate-registration-options', (c) => {
             displayName: user.username
         }
     }
-    dummyStore.currentChallenge = options.challenge;
+    c.get('session').set('currentChallenge', options.challenge)
+
     return c.json(options)
 });
 
@@ -72,7 +83,7 @@ app.get('/generate-registration-options', (c) => {
  * Login (a.k.a. "Authentication")
  */
 app.get('/generate-authentication-options', (c) => {
-
+    const user = users[c.get('session').get("currentUserId")];
     const options = {
         challenge: isoBase64URL.fromString(genRandomStr(32)),
         allowCredentials: user.devices.map((dev) => ({
@@ -86,13 +97,15 @@ app.get('/generate-authentication-options', (c) => {
         rpId: 'localhost'
     }
 
-    dummyStore.currentChallenge = options.challenge;
+    c.get('session').set('currentChallenge', options.challenge)
     return c.json(options)
 });
 
 app.post('/verify-registration', async (c) => {
     const body: RegistrationResponseJSON = await c.req.json();
-    const expectedChallenge = dummyStore.currentChallenge;
+    const user = users[c.get('session').get("currentUserId")];
+    const expectedChallenge = c.get('session').get('currentChallenge')
+
     let verification: VerifiedRegistrationResponse;
     try {
         const opts: VerifyRegistrationResponseOpts = {
@@ -102,7 +115,6 @@ app.post('/verify-registration', async (c) => {
             expectedRPID: rpID,
             requireUserVerification: true,
         };
-        console.log(opts)
         verification = await verifyRegistrationResponse(opts);
     } catch (error) {
         const _error = error as Error;
@@ -114,7 +126,6 @@ app.post('/verify-registration', async (c) => {
 
     if (verified && registrationInfo) {
         const { credentialPublicKey, credentialID, counter } = registrationInfo;
-        console.log(credentialID);
         const existingDevice = user.devices.find((device) =>
             isoUint8Array.areEqual(device.credentialID, credentialID)
         );
@@ -133,15 +144,14 @@ app.post('/verify-registration', async (c) => {
         }
     }
 
-    dummyStore.currentChallenge = '';
+    c.get('session').set('currentChallenge', '')
     return c.json({ verified })
 });
 
 app.post('/verify-authentication', async (c) => {
-
     const body: AuthenticationResponseJSON = await c.req.json();
-
-    const expectedChallenge = dummyStore.currentChallenge;
+    const user = users[c.get('session').get("currentUserId")];
+    const expectedChallenge = c.get('session').get('currentChallenge')
 
     let dbAuthenticator;
     const bodyCredIDBuffer = isoBase64URL.toBuffer(body.rawId);
@@ -172,7 +182,6 @@ app.post('/verify-authentication', async (c) => {
         const _error = error as Error;
         console.error(_error);
         return new Response(_error.message, { status: 400 });
-
     }
 
     const { verified, authenticationInfo } = verification;
@@ -182,10 +191,27 @@ app.post('/verify-authentication', async (c) => {
         dbAuthenticator.counter = authenticationInfo.newCounter;
     }
 
-    dummyStore.currentChallenge = '';
-    console.log(verification)
+    c.get('session').set('currentChallenge', '')
     return c.json({ verified })
 });
 
+app.post('/create-user', async (c) => {
+    const user = createUser(await c.req.json());
+    c.get('session').set("currentUserId", user.id);
+    return c.json({ "name": user.username })
+});
+
+
 
 Deno.serve(app.fetch)
+
+function createUser(user: any) {
+    const id = self.crypto.randomUUID()
+    users[id] = {
+        id: id,
+        username: `${user.name}@${rpID}`,
+        devices: []
+    };
+
+    return users[id];
+}

@@ -20,6 +20,18 @@
         import { ab2base64url, base64url2ab, s2ab } from './static/base64url.js';
 
         document.querySelector('#btnSignup').addEventListener('click', async () => {
+            const userName = document.getElementById('txtName').value;
+
+            // アカウント作成情報を送信してユーザを作成
+            const createUserResp = await fetch('/create-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: userName
+                }),
+            });
+            console.log(await createUserResp.json());
+            
             // RPからサイト情報や認証方式、チャレンジを取得
             const registOptionsResp = await fetch('/generate-registration-options');
             const registOptions = await registOptionsResp.json();
