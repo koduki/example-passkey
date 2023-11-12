@@ -58,10 +58,10 @@
     function buildFindOptions(authOptions, deviceId) {
         return {
             challenge: base64url2ab(authOptions.challenge), // CSRF対策（ArrayBuffer型）
-            allowCredentials: [{
-                'type': "public-key",
-                'id': deviceId
-            }], // 認証時に利用可能なPublicKeyCredentialを限定させることができる。
+            // allowCredentials: [{
+            //     'type': "public-key",
+            //     'id': deviceId
+            // }], // 認証時に利用可能なPublicKeyCredentialを限定させることができる。
             userVerification: "preferred" // 認証器によるローカル認証（生体認証、PIN入力など）の必要性を指定。
         }
 
