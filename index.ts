@@ -59,6 +59,11 @@ app.get('/generate-authentication-options', (c) => {
     return c.json(options)
 });
 
+app.get('/profile', (c) => {
+    const user = users[c.get('session').get("currentUserId")];
+    return c.json(user)
+});
+
 app.post('/verify-registration', async (c) => {
     const body: RegistrationResponseJSON = await c.req.json();
     const user = users[c.get('session').get("currentUserId")];

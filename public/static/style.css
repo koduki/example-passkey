@@ -4,6 +4,10 @@
     margin: auto;
 }
 
+#logout {
+    text-align: right;
+}
+
 .device-list {
     list-style: none;
     padding: 0;

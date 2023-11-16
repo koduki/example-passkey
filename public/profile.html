@@ -9,33 +9,57 @@
 </head>
 
 <body>
-
+    <header>
+        <h1>Passkey Example</h1>
+        <div id="logout"><a href="">ログアウト</a></div>
+    </header>
     <div class="container">
+        Welcome <span id="username"></span> !
+        <h2>PassKey</h2>
         <ul class="device-list">
             <li class="device-item">
                 <div class="device-details">
-                    <div class="device-icon"></div>
-                    <div>
-                        <div class="device-name">自宅PC(NUC13)</div>
-                        <div class="device-date">最後に使用: 11月5日 14:31</div>
-                    </div>
+
                 </div>
-                <button class="remove-device">✖</button>
-            </li>
-            <li class="device-item">
-                <div class="device-details">
-                    <div class="device-icon"></div>
-                    <div>
-                        <div class="device-name">自宅PC(Nebulla)</div>
-                        <div class="device-date">最後に使用: 10月15日 19:09</div>
-                    </div>
-                </div>
-                <button class="remove-device">✖</button>
             </li>
         </ul>
         <button class="create-passkey-btn">パスキーを追加する</button>
     </div>
 
 </body>
+<script type="module">
+    import { ab2base64url, base64url2ab, s2ab, obj2ab } from './static/base64url.js';
+
+    window.addEventListener("load", async (event) => {
+        const profileResp = await fetch('/profile');
+        const profile = await profileResp.json();
+        console.log(profile);
+
+        document.getElementById('username').textContent = profile.username;
+        const devices = profile.devices;
+        const deviceList = document.querySelector('.device-list');
+        while (deviceList.firstChild) {
+            deviceList.removeChild(deviceList.firstChild);
+        }
+
+        devices.forEach((device) => {
+            const listItem = document.createElement('li');
+            listItem.className = 'device-item';
+
+            const detailsDiv = document.createElement('div');
+            detailsDiv.className = 'device-details';
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'device-name';
+            window.hoge = device.credentialID
+            nameDiv.innerHTML = "<strong>Device Credential:</strong> " + ab2base64url(obj2ab(device.credentialID));
+
+            detailsDiv.appendChild(nameDiv);
+            listItem.appendChild(detailsDiv);
+            deviceList.appendChild(listItem);
+        });
+    });
+
+</script>
 
 </html>

@@ -9,7 +9,9 @@
 </head>
 
 <body>
-    <h1>Passkey Example</h1>
+    <header>
+        <h1>Passkey Example</h1>
+    </header>
     <div class="container">
         <p><a href="signup.html">アカウントを作成</a></p>
         <p><a href="" id="linkLogin">ログイン</a></p>
@@ -49,7 +51,7 @@
         // PRでの認証成功をチェック
         if (verificationResp.ok) {
             console.log("login:success");
-            // location.href = "profile"
+            location.href = "profile.html"
         } else {
             console.log("login:fail");
         }
