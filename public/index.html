@@ -19,36 +19,12 @@
 </body>
 
 <script type="module">
-    import { ab2base64url, base64url2ab, s2ab, obj2ab } from './static/base64url.js';
+    import { auth } from './static/auth_helper.js';
 
     document.querySelector('#linkLogin').addEventListener('click', async (event) => {
         event.preventDefault();
 
-        // チャレンジやPRに登録されている情報を取得
-        const authOptionsResp = await fetch('/generate-authentication-options');
-        const authOptions = await authOptionsResp.json();
-        const deviceId = obj2ab(authOptions.allowCredentials[0].id);
-
-
-        // チャレンジを検証し、PRから渡された情報にマッチするサイトが認証器に登録されているか検索
-        const publicKeyCredentialRequestOptions = buildFindOptions(authOptions, deviceId);
-        const credential = await navigator.credentials.get({
-            publicKey: publicKeyCredentialRequestOptions,
-            mediation: 'optional'
-        })
-        console.log(credential);
-
-
-        // チャレンジなど認証器の戻りをRPに送信して検証
-        const publicKeyCredential = buildPublicKeyCredential(credential);
-        const verificationResp = await fetch('/verify-authentication', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(publicKeyCredential),
-        });
-        console.log(verificationResp.ok);
-
-        // PRでの認証成功をチェック
+        const verificationResp = await auth();
         if (verificationResp.ok) {
             console.log("login:success");
             location.href = "profile.html"
@@ -56,31 +32,6 @@
             console.log("login:fail");
         }
     });
-
-    function buildFindOptions(authOptions, deviceId) {
-        return {
-            challenge: base64url2ab(authOptions.challenge), // CSRF対策（ArrayBuffer型）
-            // allowCredentials: [{
-            //     'type': "public-key",
-            //     'id': deviceId
-            // }], // 認証時に利用可能なPublicKeyCredentialを限定させることができる。
-            userVerification: "preferred" // 認証器によるローカル認証（生体認証、PIN入力など）の必要性を指定。
-        }
-
-    }
-
-    function buildPublicKeyCredential(credential) {
-        return {
-            id: ab2base64url(credential.rawId),
-            type: credential.type,
-            rawId: ab2base64url(credential.rawId), //Array.from(new Uint8Array(credential.rawId)),
-            response: {
-                clientDataJSON: ab2base64url(credential.response.clientDataJSON),
-                authenticatorData: ab2base64url(credential.response.authenticatorData),
-                signature: ab2base64url(credential.response.signature)
-            }
-        };
-    }
 </script>
 
 </html>

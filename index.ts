@@ -94,5 +94,4 @@ app.post('/create-user', async (c) => {
 });
 
 app.use('/*', serveStatic({ root: './public' }));
-
 Deno.serve(app.fetch);
