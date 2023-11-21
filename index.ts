@@ -40,10 +40,6 @@ app.use('*', sessionMiddleware({
     },
 }));
 
-app.get('/echo', (c) => {
-    return c.text('Hello Deno!');
-});
-
 app.get('/generate-registration-options', (c) => {
     const user = users[c.get('session').get("currentUserId")];
     const options = buildRegistrationOptions(rpName, rpID, user);
