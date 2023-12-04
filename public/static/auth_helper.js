@@ -8,7 +8,7 @@ export async function auth() {
 
     // チャレンジを検証し、PRから渡された情報にマッチするサイトが認証器に登録されているか検索
     const credential = await navigator.credentials.get({
-        publicKey: buildOptionsForVerifyDevice(authOptions, deviceId),
+        publicKey: buildOptionsForVerifyDevice(authOptions),
         mediation: 'optional'
     });
     console.log(credential);
@@ -23,10 +23,10 @@ export async function auth() {
     return verificationResp;
 }
 
-function buildOptionsForVerifyDevice(authOptions, deviceId) {
+function buildOptionsForVerifyDevice(authOptions) {
     return {
-        challenge: base64url2ab(authOptions.challenge), // CSRF対策（ArrayBuffer型）
-        userVerification: "preferred" // 認証器によるローカル認証（生体認証、PIN入力など）の必要性を指定。
+        challenge: base64url2ab(authOptions.challenge),
+        userVerification: "preferred"
     };
 }
 
@@ -34,7 +34,7 @@ function buildOptionsForVerifyRP(credential) {
     return {
         id: ab2base64url(credential.rawId),
         type: credential.type,
-        rawId: ab2base64url(credential.rawId), 
+        rawId: ab2base64url(credential.rawId),
         response: {
             clientDataJSON: ab2base64url(credential.response.clientDataJSON),
             authenticatorData: ab2base64url(credential.response.authenticatorData),
