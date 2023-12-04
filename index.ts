@@ -1,11 +1,11 @@
-import { Hono } from 'https://deno.land/x/hono/mod.ts';
+import { Hono } from 'https://deno.land/x/hono@v3.11.1/mod.ts';
 import { serveStatic } from 'https://deno.land/x/hono@v3.3.0/middleware.ts';
-import { Session, sessionMiddleware, CookieStore } from 'https://deno.land/x/hono_sessions/mod.ts';
+import { Session, sessionMiddleware, CookieStore } from "https://deno.land/x/hono_sessions@v0.3.3/mod.ts";
 
 import type {
     AuthenticationResponseJSON, 
     RegistrationResponseJSON
-} from 'https://deno.land/x/simplewebauthn/deno/typescript-types.ts';
+} from 'https://deno.land/x/simplewebauthn@v8.3.5/deno/typescript-types.ts';
 
 import {
     buildRegistrationOptions, 

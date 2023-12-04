@@ -1,11 +1,8 @@
 import { ab2base64url, base64url2ab, s2ab, obj2ab } from './base64url.js';
 
 export async function auth() {
-    const url_auth_options = '/generate-authentication-options';
-    const url_auth_verify = '/verify-authentication';
-
     // チャレンジやPRに登録されている情報を取得
-    const authOptionsResp = await fetch(url_auth_options);
+    const authOptionsResp = await fetch('/generate-authentication-options');
     const authOptions = await authOptionsResp.json();
     const deviceId = obj2ab(authOptions.allowCredentials[0].id);
 
@@ -17,7 +14,7 @@ export async function auth() {
     console.log(credential);
 
     // チャレンジなど認証器の戻りをRPに送信して検証
-    const verificationResp = await fetch(url_auth_verify, {
+    const verificationResp = await fetch('/verify-authentication', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(buildOptionsForVerifyRP(credential)),

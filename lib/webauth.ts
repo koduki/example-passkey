@@ -1,7 +1,7 @@
 import {
     verifyAuthenticationResponse,
     verifyRegistrationResponse,
-} from 'https://deno.land/x/simplewebauthn/deno/server.ts';
+} from 'https://deno.land/x/simplewebauthn@v8.3.5/deno/server.ts';
 
 import type {
     VerifiedAuthenticationResponse,
@@ -9,7 +9,7 @@ import type {
     VerifyAuthenticationResponseOpts,
     VerifyRegistrationResponseOpts,
     AuthenticatorDevice,
-} from 'https://deno.land/x/simplewebauthn/deno/typescript-types.ts';
+} from 'https://deno.land/x/simplewebauthn@v8.3.5/deno/typescript-types.ts';
 
 import { isoBase64URL, isoUint8Array } from "https://deno.land/x/simplewebauthn@v8.3.5/deno/server/helpers.ts";
 
